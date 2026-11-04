@@ -1,0 +1,24 @@
+- Take one human goal through planning, implementation, independent review, and a reviewed PR. The human merges.
+- Use OpenAI only, newest GPT-6 generation with the latest revision of each variant. Verified 2026-11-04 against the official [Codex model list](https://learn.chatgpt.com/docs/models), [model catalog](https://developers.openai.com/api/docs/models), and [pricing](https://developers.openai.com/api/docs/pricing). Prices below are USD per 1M uncached input / output tokens, Standard processing, short context; subscription usage is billed differently.
+- Price rank, cheapest first: `gpt-6-luna` ($0.10 / $0.50), `gpt-6.1-terra` ($1 / $5), `gpt-6.1-sol` ($2 / $10), `gpt-6-astra` ($10 / $50). Rank by price; ask the human only on a model-selection tie. Do not reuse a model across roles unless no alternative exists; the human explicitly approved `gpt-6.1-sol` for both Orchestrator/Planner and Executor.
+- Orchestrator/Planner: `gpt-6.1-sol`, high reasoning, $2 / $10. Plan and coordinate; never code.
+- Executor: `gpt-6.1-sol`, $2 / $10; best coding model below the priciest tier. Implement the plan and its tests.
+- Auditor: `gpt-6-astra`, high effort, $10 / $50; most capable model. Start with fresh context; return ACCEPT or REJECT with findings, never fixes. Try to break the build using inputs the tests lack.
+- Auditor must REJECT if tests echo the implementation, anything is weakened or skipped, a test is deleted, a protected file changes, a dependency is unflagged, or any policy or goal rule is broken, unless the human explicitly allowed the relevant exception.
+- Tooler: `gpt-6-luna`, $0.10 / $0.50; cheapest model. Handle setup and CI alone, without an Executor or Auditor on that work.
+- Subagents receive only their task and necessary policy, goal, files, and evidence; never inherit the parent's conversation and never spawn subagents. Each runs in its own Herdr pane. Run independent tasks in parallel.
+- Use Herdr's blocking wait: `herdr agent prompt <agent> "<task>" --wait --timeout 60000`, then `herdr agent wait <agent> --timeout 60000` if still running. Read results after settling; never poll in a loop.
+- Work only in worktrees created through `wt`, never the primary checkout. Learn syntax from `wt --help`, `wt switch --help`, and `wt remove --help`; do not install or run hooks.
+- Before every PR branch, freshly fetch `main`: `git fetch origin main`. Exact create command: `wt switch --create <branch> --base origin/main --no-hooks`. Use the returned worktree path for all work, including each parallel task's pane.
+- Exact cleanup command, after work is preserved and the human has merged: `wt remove <branch> --no-hooks --foreground`. Do not use `wt merge`; the human merges.
+- Use `gh` for GitHub operations. Never push to `main` or merge a PR yourself.
+- Go: one table-driven test per exported function, calling `t.Parallel()`; one blackbox `<source>_test.go` file per source file, using the external `<package>_test` package. Assert the goal's behavior, not copied implementation output. Commit these tests before the code they test. Never weaken a test.
+- Keep CLI `main` thin. Maintain at least 90% Go coverage.
+- `task gate` must pass locally before any PR. Include its actual result and a per-file coverage table in the PR. Use existing tooling and standard Go coverage reports, without custom tooling; transcribe per-file percentages from `go tool cover -html=<coverprofile>` if needed.
+- Flag dependency additions or changes explicitly in the review handoff and PR.
+- Deliver implementation PRs only after Auditor ACCEPT; include the audit verdict and findings alongside gate and coverage evidence.
+- Protected; human sign-off required: Taskfile, lint config, CI, Dependabot, `AGENTS.md`, `spec/target.html`, repository settings, and rulesets. These guardrails and all rules hold unless the human explicitly allows an exception.
+- If the same failure remains after two rounds, stop and escalate to the human with the failure and evidence.
+- Codex reads `AGENTS.md` directly. If another tool reads a different instructions filename, symlink that filename to `AGENTS.md`; copy it only if symlinking fails.
+- Initial setup PR #1: human authorization explicitly permits editing the protected files and repository settings listed above through PR #1 merge. After PR #1 merges, those protections again require human sign-off.
+- Worktrees for this repository live under `.worktrees/`; make project edits only in worktrees created through `wt`.
